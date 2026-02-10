@@ -1,29 +1,42 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { testConnection } = require('./db');
-const authRoutes = require('./routes/auth');
-const runRoutes = require('./routes/runs');
-
 const app = express();
+
+const authRoutes = require('./routes/auth');
+const runsRoutes = require('./routes/runs');
+const challengesRoutes = require('./routes/challenges');
+const errorHandler = require('./middleware/errorHandler');
+
+const PORT = process.env.PORT || 8080;
+
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
     res.json({
-        mensaje: 'API EcoRun',
-        estado: 'ok',
-        timestamp: new Date().toISOString()
+        message: 'EcoRun API funcionando',
+        version: '1.0.0',
+        endpoints: {
+            auth: '/api/auth',
+            runs: '/api/runs',
+            challenges: '/api/challenges'
+        }
     });
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/runs', runRoutes);
+app.use('/api/runs', runsRoutes);
+app.use('/api/challenges', challengesRoutes);
 
-const PORT = process.env.PORT || 8080;
-testConnection().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Servidor: http://localhost:${PORT}`);
-    });
+app.use((req, res) => {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+    console.log(`Servidor: http://localhost:${PORT}`);
 });
