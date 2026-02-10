@@ -1,106 +1,129 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
-const { pool: db } = require('../db');
-
 const router = express.Router();
+const db = require('../db');
+const bcrypt = require('bcrypt');
+const { body } = require('express-validator');
+const validateRequest = require('../middleware/validateRequest');
 
-router.post(
-    '/register',
+
+router.post('/register',
     [
-        body('username').isLength({ min: 3 }),
-        body('email').isEmail(),
-        body('password').isLength({ min: 6 })
+        body('username')
+            .trim()
+            .isLength({ min: 3, max: 50 })
+            .withMessage('Username debe tener entre 3 y 50 caracteres')
+            .matches(/^[a-zA-Z0-9_]+$/)
+            .withMessage('Username solo puede contener letras, números y guiones bajos'),
+        body('email')
+            .isEmail()
+            .normalizeEmail()
+            .withMessage('Email inválido'),
+        body('password')
+            .isLength({ min: 6 })
+            .withMessage('Password debe tener mínimo 6 caracteres')
     ],
+    validateRequest,
     async (req, res) => {
+        const { username, email, password } = req.body;
+
         try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({ errors: errors.array() });
-            }
+            const passwordHash = await bcrypt.hash(password, 10);
 
-            const { username, email, password } = req.body;
+            const sql = `
+        INSERT INTO users (username, email, password_hash, role, eco_points)
+        VALUES (?, ?, ?, 'user', 0)`;
 
-            const [existing] = await db.execute(
-                'SELECT id FROM users WHERE email = ? OR username = ?',
-                [email, username]
-            );
-            if (existing.length > 0) {
-                return res.status(400).json({ error: 'Usuario ya existe' });
-            }
+            db.query(sql, [username, email, passwordHash], (err, result) => {
+                if (err) {
+                    console.error(err);
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(409).json({ error: 'Username o email ya existen' });
+                    }
+                    return res.status(500).json({ error: 'Error en la base de datos' });
+                }
 
-            const hashed = await bcrypt.hash(password, 10);
-
-            const [result] = await db.execute(
-                'INSERT INTO users (username, email, password_hash, eco_points, role, created_at) VALUES (?, ?, ?, 0, "user", NOW())',
-                [username, email, hashed]
-            );
-
-            const token = jwt.sign(
-                { userId: result.insertId },
-                process.env.JWT_SECRET,
-                { expiresIn: '24h' }
-            );
-
-            res.status(201).json({
-                mensaje: 'Usuario creado',
-                token,
-                user: { id: result.insertId, username, email }
+                res.status(201).json({
+                    id: result.insertId,
+                    username,
+                    email,
+                    message: 'Usuario registrado exitosamente'
+                });
             });
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: 'Error servidor' });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: 'Error interno del servidor' });
         }
     }
 );
 
-router.post(
-    '/login',
+
+router.post('/login',
     [
-        body('email').isEmail(),
-        body('password').notEmpty()
+        body('email')
+            .isEmail()
+            .normalizeEmail()
+            .withMessage('Email inválido'),
+        body('password')
+            .notEmpty()
+            .withMessage('Password requerido')
     ],
-    async (req, res) => {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({ errors: errors.array() });
+    validateRequest,
+    (req, res) => {
+        const { email, password } = req.body;
+
+        const sql = 'SELECT * FROM users WHERE email = ? LIMIT 1';
+
+        db.query(sql, [email], async (err, rows) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: 'Error en la base de datos' });
             }
 
-            const { email, password } = req.body;
+            if (rows.length === 0) {
+                return res.status(401).json({ error: 'Credenciales inválidas' });
+            }
 
-            const [rows] = await db.execute(
-                'SELECT * FROM users WHERE email = ?',
-                [email]
-            );
             const user = rows[0];
 
-            if (!user) {
-                return res.status(401).json({ error: 'Credenciales inválidas' });
+            try {
+                const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+                if (!passwordMatch) {
+                    return res.status(401).json({ error: 'Credenciales inválidas' });
+                }
+
+                const { password_hash, ...userWithoutPassword } = user;
+
+                res.json({
+                    message: 'Login exitoso',
+                    user: userWithoutPassword
+                });
+            } catch (e) {
+                console.error(e);
+                res.status(500).json({ error: 'Error interno del servidor' });
             }
-
-            const ok = await bcrypt.compare(password, user.password_hash);
-            if (!ok) {
-                return res.status(401).json({ error: 'Credenciales inválidas' });
-            }
-
-            const token = jwt.sign(
-                { userId: user.id },
-                process.env.JWT_SECRET,
-                { expiresIn: '24h' }
-            );
-
-            res.json({
-                mensaje: 'Login OK',
-                token,
-                user: { id: user.id, username: user.username, email: user.email }
-            });
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ error: 'Error servidor' });
-        }
+        });
     }
 );
+
+
+router.get('/user/:id', (req, res) => {
+    const { id } = req.params;
+
+    const sql = 'SELECT id, username, email, eco_points, role, created_at FROM users WHERE id = ?';
+
+    db.query(sql, [id], (err, rows) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Error en la base de datos' });
+        }
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json(rows[0]);
+    });
+});
 
 module.exports = router;
