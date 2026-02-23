@@ -71,7 +71,7 @@ router.post(
       const sql = `
         INSERT INTO runs
           (user_id, run_name, description, distance_km, duration_minutes,
-           start_time, end_time, run_date, points_earned)
+          start_time, end_time, run_date, points_earned)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
