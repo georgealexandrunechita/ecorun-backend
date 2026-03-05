@@ -54,10 +54,8 @@ const errorHandler = (err, req, res, next) => {
     });
 };
 
-app.use(notFound);
-app.use(errorHandler);
+const notFound = (req, res, next) => {
+    next(AppError.notFound(`Ruta ${req.originalUrl} no encontrada`));
+};
 
-app.listen(PORT, () => {
-  console.log('EcoRun API v2.0 - http://localhost:' + PORT);
-  console.log('Health check: http://localhost:' + PORT + '/health');
-});
+module.exports = { AppError, errorHandler, notFound };
