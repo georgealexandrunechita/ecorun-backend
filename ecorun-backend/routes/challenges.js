@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../db');
+const { pool } = require('../src/config/db');
 const { body, param } = require('express-validator');
-const validateRequest = require('../middleware/validateRequest');
+const validateRequest = require('../src/middleware/validateRequest');
 
 
 router.get('/', async (req, res) => {

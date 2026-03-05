@@ -1,9 +1,9 @@
-const challengeService = require('../services/challengeServices');
+const challengeService = require('../services/challengeService');
 
 class ChallengeController {
     static async getActiveChallenges(req, res, next) {
         try {
-            const challenges = await ChallengeService.getActiveChallenges();
+            const challenges = await challengeService.getActiveChallenges();
             res.json({
                 success: true,
                 data: challenges
@@ -16,7 +16,7 @@ class ChallengeController {
     static async getChallenge(req, res, next) {
         try {
             const { id } = req.params;
-            const challenge = await ChallengeService.getChallengeById(id);
+            const challenge = await challengeService.getChallengeById(id);
             res.json({
                 success: true,
                 data: challenge
@@ -30,7 +30,7 @@ class ChallengeController {
         try {
             const { id } = req.params;
             const userId = req.user.id;
-            const result = await ChallengeService.joinChallenge(userId, id);
+            const result = await challengeService.joinChallenge(userId, id);
             
             res.status(201).json({
                 success: true,
@@ -45,7 +45,7 @@ class ChallengeController {
     static async getUserChallenges(req, res, next) {
         try {
             const userId = req.user.id;
-            const challenges = await ChallengeService.getUserChallenges(userId);
+            const challenges = await challengeService.getUserChallenges(userId);
             
             res.json({
                 success: true,
@@ -60,7 +60,7 @@ class ChallengeController {
         try {
             const { userChallengeId } = req.params;
             const { progress } = req.body;
-            const updated = await ChallengeService.updateProgress(userChallengeId, progress);
+            const updated = await challengeService.updateProgress(userChallengeId, progress);
             
             res.json({
                 success: true,

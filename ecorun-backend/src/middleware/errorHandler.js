@@ -32,9 +32,7 @@ class AppError extends Error {
     }
 }
 
-
 const errorHandler = (err, req, res, next) => {
-
     if (err.isOperational) {
         return res.status(err.statusCode).json({
             success: false,
@@ -51,14 +49,15 @@ const errorHandler = (err, req, res, next) => {
         message: 'Error interno del servidor',
         ...(process.env.NODE_ENV === 'development' && {
             error: err.message,
-            stack: err.stack
+            stack: err.stack,
         }),
     });
 };
 
+app.use(notFound);
+app.use(errorHandler);
 
-const notFound = (req, res, next) => {
-    next(AppError.notFound(`Ruta ${req.originalUrl} no encontrada`));
-};
-
-module.exports = { AppError, errorHandler, notFound };
+app.listen(PORT, () => {
+  console.log('EcoRun API v2.0 - http://localhost:' + PORT);
+  console.log('Health check: http://localhost:' + PORT + '/health');
+});

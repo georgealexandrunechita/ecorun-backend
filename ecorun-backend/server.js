@@ -7,9 +7,9 @@ const compression = require('compression');
 
 const { testConnection } = require('./src/config/db');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
-const authRoutes = require('./src/routes/auth');
-const runsRoutes = require('./src/routes/runs');
-const challengesRoutes = require('./src/routes/challenges');
+const authRoutes = require('./routes/auth');
+const runsRoutes = require('./routes/runs');
+const challengesRoutes = require('./routes/challenges');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -24,10 +24,10 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', async (req, res) => {
     try {
         await testConnection();
-        res.status(200).json({ 
-            status: 'OK', 
+        res.status(200).json({
+            status: 'OK',
             timestamp: new Date().toISOString(),
-            env: process.env.NODE_ENV || 'development'
+            env: process.env.NODE_ENV || 'development',
         });
     } catch (error) {
         res.status(503).json({ status: 'DB_ERROR', error: error.message });
@@ -43,8 +43,8 @@ app.get('/', (req, res) => {
             health: '/health',
             auth: '/api/auth',
             runs: '/api/runs',
-            challenges: '/api/challenges'
-        }
+            challenges: '/api/challenges',
+        },
     });
 });
 
@@ -55,8 +55,7 @@ app.use('/api/challenges', challengesRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, async () => {
-    console.log(`🚀 EcoRun API v2.0 - http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    await testConnection();
+app.listen(PORT, () => {
+    console.log('EcoRun API v2.0 - http://localhost:' + PORT);
+    console.log('Health check: http://localhost:' + PORT + '/health');
 });

@@ -2,10 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { pool: db } = require('../db');
+const { pool } = require('../src/config/db');
 
 const router = express.Router();
-
 
 router.post('/register', [
     body('username').notEmpty().withMessage('Username required'),
@@ -19,7 +18,7 @@ router.post('/register', [
         const { username, email, password } = req.body;
         const password_hash = await bcrypt.hash(password, 10);
 
-        const [result] = await db.execute(
+        const [result] = await pool.execute(
             'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
             [username, email, password_hash]
         );
@@ -36,11 +35,13 @@ router.post('/register', [
     }
 });
 
-
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const [users] = await db.execute('SELECT * FROM users WHERE email = ? OR username = ?', [email, email]);
+        const [users] = await pool.execute(
+            'SELECT * FROM users WHERE email = ? OR username = ?',
+            [email, email]
+        );
 
         if (users.length === 0) return res.status(401).json({ error: 'Credenciales inválidas' });
 

@@ -1,7 +1,9 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../config/db');
-const { AppError } = require('../middleware/errorHandler');
+const { pool } = require('../src/config/db');
+const { AppError } = require('../src/middleware/errorHandler');
+const UserModel = require('../models/userModel');
+
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_secret_aqui';
@@ -12,12 +14,12 @@ class AuthService {
         try {
             const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-            const [result] = await db.query(
+            const [result] = await pool.query(
                 'INSERT INTO users (username, email, password_hash, eco_points, role) VALUES (?, ?, ?, 0, "user")',
                 [username, email, hashedPassword]
             );
 
-            const [users] = await db.query(
+            const [users] = await pool.query(
                 'SELECT id, username, email, eco_points, role, created_at FROM users WHERE id = ?',
                 [result.insertId]
             );
@@ -37,7 +39,7 @@ class AuthService {
     }
 
     static async login(email, password) {
-        const [users] = await db.query(
+        const [users] = await pool.query(
             'SELECT id, username, email, password_hash, eco_points, role FROM users WHERE email = ?',
             [email]
         );

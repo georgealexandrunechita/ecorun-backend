@@ -1,11 +1,11 @@
-const authService = require('../services/authServices');
+const authService = require('../services/authService');
 
 class AuthController {
     static async register(req, res, next) {
         try {
             const { username, email, password } = req.body;
 
-            const user = await AuthService.register(username, email, password);
+            const user = await authService.register(username, email, password);
 
             res.status(201).json({
                 success: true,
@@ -21,7 +21,7 @@ class AuthController {
         try {
             const { email, password } = req.body;
 
-            const { user, token } = await AuthService.login(email, password);
+            const { user, token } = await authService.login(email, password);
 
             res.status(200).json({
                 success: true,
