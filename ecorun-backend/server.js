@@ -17,7 +17,9 @@ const PORT = process.env.PORT || 8080;
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
 app.use(compression());
-app.use(morgan('combined'));
+if (process.env.NODE_ENV !== 'test') {
+    app.use(morgan('combined'));
+}
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -55,7 +57,11 @@ app.use('/api/challenges', challengesRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-    console.log('EcoRun API v2.0 - http://localhost:' + PORT);
-    console.log('Health check: http://localhost:' + PORT + '/health');
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log('EcoRun API v2.0 - http://localhost:' + PORT);
+        console.log('Health check: http://localhost:' + PORT + '/health');
+    });
+}
+
+module.exports = app;

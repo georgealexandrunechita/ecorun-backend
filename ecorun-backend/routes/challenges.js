@@ -9,8 +9,8 @@ const authMiddleware = require('../src/middleware/authMiddleware');
 router.get('/', async (req, res) => {
     const sql = `
     SELECT *
-    FROM challenges 
-    WHERE active = 1 
+    FROM challenges
+    WHERE active = 1
     ORDER BY difficulty, end_date`;
 
     try {
@@ -21,6 +21,51 @@ router.get('/', async (req, res) => {
         return res.status(500).json({ error: 'Error obteniendo challenges' });
     }
 });
+
+
+// IMPORTANTE: /user/:userId debe ir ANTES de /:id para que Express no
+// interprete 'user' como un :id
+router.get(
+    '/user/:userId',
+    authMiddleware,
+    [param('userId').isInt({ min: 1 }).withMessage('userId debe ser un entero positivo')],
+    validateRequest,
+    async (req, res) => {
+        const userId = req.user.id;
+
+        const sql = `
+    SELECT
+        uc.id,
+        uc.progress,
+        uc.status,
+        uc.joined_at,
+        c.id          AS challenge_id,
+        c.name,
+        c.description,
+        c.goal_type,
+        c.goal_value,
+        c.reward_points,
+        c.difficulty,
+        c.category,
+        c.start_date,
+        c.end_date
+            FROM user_challenges uc
+            JOIN challenges c ON uc.challenge_id = c.id
+            WHERE uc.user_id = ?
+            ORDER BY uc.joined_at DESC
+    `;
+
+        try {
+            const [rows] = await pool.query(sql, [userId]);
+            return res.json(rows);
+        } catch (err) {
+            console.error('Error obteniendo challenges del usuario:', err);
+            return res
+                .status(500)
+                .json({ error: 'Error obteniendo challenges del usuario' });
+        }
+    }
+);
 
 
 router.get(
@@ -93,48 +138,6 @@ router.post(
 );
 
 
-router.get(
-    '/user/:userId',
-    authMiddleware,
-    [param('userId').isInt({ min: 1 }).withMessage('userId debe ser un entero positivo')],
-    validateRequest,
-    async (req, res) => {
-        const userId = req.user.id;
-
-        const sql = `
-    SELECT 
-        uc.id,
-        uc.progress,
-        uc.status,
-        uc.joined_at,
-        c.id          AS challenge_id,
-        c.name,
-        c.description,
-        c.goal_type,
-        c.goal_value,
-        c.reward_points,
-        c.difficulty,
-        c.category,
-        c.start_date,
-        c.end_date
-            FROM user_challenges uc
-            JOIN challenges c ON uc.challenge_id = c.id
-            WHERE uc.user_id = ?
-            ORDER BY uc.joined_at DESC
-    `;
-
-        try {
-            const [rows] = await pool.query(sql, [userId]);
-            return res.json(rows);
-        } catch (err) {
-            console.error('Error obteniendo challenges del usuario:', err);
-            return res
-                .status(500)
-                .json({ error: 'Error obteniendo challenges del usuario' });
-        }
-    }
-);
-
 router.put(
     '/user/:userChallengeId/progress',
     authMiddleware,
@@ -152,7 +155,7 @@ router.put(
         const { progress } = req.body;
 
         const sql = `
-        UPDATE user_challenges 
+        UPDATE user_challenges
         SET progress = ?
         WHERE id = ?`;
 

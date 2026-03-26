@@ -1,0 +1,1080 @@
+{
+  "info": {
+    "_postman_id": "col-ecorun-sevilla-api-v2",
+    "name": "EcoRun Sevilla API",
+    "description": "Colección completa de tests para la API REST de EcoRun Sevilla.\n\n**Cómo usar:**\n1. Importa también `postman_environment.json`\n2. Selecciona el entorno \"EcoRun Sevilla - Local\"\n3. Ejecuta la carpeta **Auth** primero (el token se guarda automáticamente)\n4. El resto de tests funciona sin configuración adicional\n\n**Orden recomendado al usar Collection Runner:**\nAuth → Runs → Challenges → Tests de error",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🔍 Health & Info",
+      "item": [
+        {
+          "name": "Info API",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde con info de la API\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('version');",
+                  "    pm.expect(json).to.have.property('endpoints');",
+                  "});",
+                  "",
+                  "pm.test(\"Tiempo de respuesta < 500ms\", function() {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200 o 503\", function() {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde con status de salud\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json).to.have.property('timestamp');",
+                  "});",
+                  "",
+                  "pm.test(\"Base de datos OK\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('OK');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Registro de usuario",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Genera credenciales únicas para evitar conflictos en reruns",
+                  "const ts = Date.now();",
+                  "pm.environment.set('test_username', 'testuser_' + ts);",
+                  "pm.environment.set('test_email', 'test_' + ts + '@ecorun.com');",
+                  "pm.environment.set('test_password', 'Test123');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve token JWT\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('token');",
+                  "    pm.expect(json.token).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('auth_token', json.token);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve datos del usuario\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('user');",
+                  "    pm.expect(json.user).to.have.property('id');",
+                  "    pm.expect(json.user).to.have.property('username');",
+                  "    pm.expect(json.user).to.have.property('email');",
+                  "    pm.environment.set('user_id', json.user.id);",
+                  "});",
+                  "",
+                  "pm.test(\"No expone password_hash\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.user).to.not.have.property('password_hash');",
+                  "    pm.expect(json.user).to.not.have.property('password');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{test_username}}\",\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login exitoso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Token generado y guardado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('token');",
+                  "    pm.expect(json.token).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('auth_token', json.token);",
+                  "});",
+                  "",
+                  "pm.test(\"Datos del usuario correctos\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.user).to.have.property('id');",
+                  "    pm.expect(json.user).to.have.property('username');",
+                  "    pm.expect(json.user.email).to.equal(pm.environment.get('test_email'));",
+                  "    pm.environment.set('user_id', json.user.id);",
+                  "});",
+                  "",
+                  "pm.test(\"No expone password_hash\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.user).to.not.have.property('password_hash');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Login - Credenciales incorrectas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve mensaje de error\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "    pm.expect(json.error).to.include('nv');",
+                  "});",
+                  "",
+                  "pm.test(\"No devuelve token\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.not.have.property('token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"noexiste@ecorun.com\",\n  \"password\": \"WrongPass999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Registro - Email duplicado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400\", function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve error de duplicado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{test_username}}\",\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏃 Runs",
+      "item": [
+        {
+          "name": "Crear carrera",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Genera timestamps dinámicos para la carrera",
+                  "const now = new Date();",
+                  "const end = new Date(now.getTime() + 30 * 60000);",
+                  "pm.environment.set('run_start_time', now.toISOString());",
+                  "pm.environment.set('run_end_time', end.toISOString());",
+                  "pm.environment.set('run_date', now.toISOString().split('T')[0]);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Run creado con campos correctos\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data).to.have.property('id');",
+                  "    pm.expect(json.data).to.have.property('run_name');",
+                  "    pm.expect(json.data).to.have.property('distance_km');",
+                  "    pm.expect(json.data).to.have.property('points_earned');",
+                  "    pm.environment.set('run_id', json.data.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Puntos calculados automáticamente\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data.points_earned).to.equal(50);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"run_name\": \"Carrera Test Sevilla\",\n  \"description\": \"Carrera de prueba generada por Postman\",\n  \"distance_km\": 5,\n  \"duration_minutes\": 30,\n  \"start_time\": \"{{run_start_time}}\",\n  \"end_time\": \"{{run_end_time}}\",\n  \"run_date\": \"{{run_date}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/runs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Carreras del usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve array de runs\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Al menos un run creado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/runs/user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs", "user", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener carrera por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Run con datos correctos\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data).to.have.property('id');",
+                  "    pm.expect(String(json.data.id)).to.equal(String(pm.environment.get('run_id')));",
+                  "    pm.expect(json.data).to.have.property('run_name');",
+                  "    pm.expect(json.data).to.have.property('distance_km');",
+                  "    pm.expect(json.data).to.have.property('user_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/runs/{{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs", "{{run_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar carrera",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Run actualizado correctamente\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.run_name).to.equal('Carrera Actualizada');",
+                  "    pm.expect(parseFloat(json.data.distance_km)).to.equal(8.5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"run_name\": \"Carrera Actualizada\",\n  \"distance_km\": 8.5,\n  \"description\": \"Carrera actualizada por test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/runs/{{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs", "{{run_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar carrera",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Confirmación de eliminación\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.message).to.include('eliminado');",
+                  "});",
+                  "",
+                  "// Limpia variable de entorno",
+                  "pm.environment.unset('run_id');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/runs/{{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs", "{{run_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Crear carrera - Sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de token requerido\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "    pm.expect(json.error.toLowerCase()).to.include('token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"run_name\": \"Test sin auth\",\n  \"distance_km\": 5,\n  \"duration_minutes\": 30,\n  \"start_time\": \"2026-03-26T08:00:00.000Z\",\n  \"end_time\": \"2026-03-26T08:30:00.000Z\",\n  \"run_date\": \"2026-03-26\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/runs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Obtener run inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de no encontrado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    const msg = json.message || json.error || '';",
+                  "    pm.expect(msg).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/runs/99999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs", "99999"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Token inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de token inválido\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.error.toLowerCase()).to.include('token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer token.invalido.aqui"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/runs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "runs", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏆 Challenges",
+      "item": [
+        {
+          "name": "Listar challenges activos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve array de challenges\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "    pm.expect(json.length).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test(\"Todos los challenges están activos\", function() {",
+                  "    const json = pm.response.json();",
+                  "    json.forEach(function(c) {",
+                  "        pm.expect(c.active).to.equal(1);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Challenge tiene campos requeridos\", function() {",
+                  "    const json = pm.response.json();",
+                  "    const c = json[0];",
+                  "    pm.expect(c).to.have.property('id');",
+                  "    pm.expect(c).to.have.property('name');",
+                  "    pm.expect(c).to.have.property('difficulty');",
+                  "    pm.expect(c).to.have.property('reward_points');",
+                  "    pm.environment.set('challenge_id', c.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/challenges",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener challenge por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Challenge con campos correctos\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('description');",
+                  "    pm.expect(json).to.have.property('goal_type');",
+                  "    pm.expect(json).to.have.property('goal_value');",
+                  "    pm.expect(json).to.have.property('difficulty');",
+                  "    pm.expect(json).to.have.property('reward_points');",
+                  "});",
+                  "",
+                  "pm.test(\"ID coincide con el solicitado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(String(json.id)).to.equal(String(pm.environment.get('challenge_id')));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/challenges/{{challenge_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "{{challenge_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unirse a un challenge",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Estado inicial in_progress\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('in_progress');",
+                  "    pm.expect(json.progress).to.equal(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve ID del user_challenge\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json.id).to.be.a('number');",
+                  "    pm.environment.set('user_challenge_id', json.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Challenge ID coincide\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(String(json.challenge_id)).to.equal(String(pm.environment.get('challenge_id')));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges/{{challenge_id}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "{{challenge_id}}", "join"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mis challenges",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve array de challenges del usuario\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "    pm.expect(json.length).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test(\"Cada item tiene campos de challenge y progreso\", function() {",
+                  "    const json = pm.response.json();",
+                  "    const item = json[0];",
+                  "    pm.expect(item).to.have.property('challenge_id');",
+                  "    pm.expect(item).to.have.property('name');",
+                  "    pm.expect(item).to.have.property('progress');",
+                  "    pm.expect(item).to.have.property('status');",
+                  "    pm.expect(item).to.have.property('joined_at');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/challenges/user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "user", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar progreso de challenge",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Progreso actualizado correctamente\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('message');",
+                  "    pm.expect(json).to.have.property('progress');",
+                  "    pm.expect(parseFloat(json.progress)).to.equal(5.5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"progress\": 5.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges/user/{{user_challenge_id}}/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "user", "{{user_challenge_id}}", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Unirse a challenge - Sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de token requerido\", function() {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "    pm.expect(json.error.toLowerCase()).to.include('token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges/3/join",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "3", "join"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Challenge inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de no encontrado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    const msg = json.message || json.error || '';",
+                  "    pm.expect(msg).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/challenges/99999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "99999"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Progreso - UserChallenge inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de no encontrado\", function() {",
+                  "    const json = pm.response.json();",
+                  "    const msg = json.message || json.error || '';",
+                  "    pm.expect(msg).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"progress\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges/user/99999/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "user", "99999", "progress"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
