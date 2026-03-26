@@ -1,6 +1,11 @@
 # Dependencias
 node_modules/
 
+# Documentación y tests de API (uso local/equipo)
+API_DOCUMENTATION.md
+postman_collection.json
+postman_environment.json
+
 # Variables de entorno — NUNCA subir al repo
 .env
 .env.local
