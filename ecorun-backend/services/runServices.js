@@ -3,6 +3,9 @@ const { AppError } = require('../src/middleware/errorHandler');
 const RunModel = require('../models/runModel');
 
 
+// Convierte ISO 8601 ("2026-03-26T08:00:00.000Z") al formato MySQL DATETIME ("2026-03-26 08:00:00")
+const toMySQL = (iso) => iso ? iso.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace('Z', '') : null;
+
 class RunService {
     static async createRun(runData) {
         const {
@@ -14,7 +17,7 @@ class RunService {
 
         const [result] = await pool.query(
             `INSERT INTO runs (
-                user_id, run_name, description, distance_km, 
+                user_id, run_name, description, distance_km,
                 duration_minutes, start_time, end_time, run_date, points_earned
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
@@ -23,9 +26,9 @@ class RunService {
                 description || null,
                 distance_km,
                 duration_minutes,
-                start_time,
-                end_time,
-                run_date,
+                toMySQL(start_time),
+                toMySQL(end_time),
+                toMySQL(run_date),
                 calculatedPoints
             ]
         );

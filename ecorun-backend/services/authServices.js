@@ -15,12 +15,12 @@ class AuthService {
             const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
             const [result] = await pool.query(
-                'INSERT INTO users (username, email, password_hash, eco_points, role) VALUES (?, ?, ?, 0, "user")',
+                'INSERT INTO users (username, email, password_hash, ecopoints, role) VALUES (?, ?, ?, 0, "user")',
                 [username, email, hashedPassword]
             );
 
             const [users] = await pool.query(
-                'SELECT id, username, email, eco_points, role, created_at FROM users WHERE id = ?',
+                'SELECT id, username, email, ecopoints, role, created_at FROM users WHERE id = ?',
                 [result.insertId]
             );
 
@@ -40,7 +40,7 @@ class AuthService {
 
     static async login(email, password) {
         const [users] = await pool.query(
-            'SELECT id, username, email, password_hash, eco_points, role FROM users WHERE email = ?',
+            'SELECT id, username, email, password_hash, ecopoints, role FROM users WHERE email = ?',
             [email]
         );
 
