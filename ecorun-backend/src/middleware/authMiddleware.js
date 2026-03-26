@@ -9,7 +9,7 @@ function authMiddleware(req, res, next) {
     const token = header.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
         req.user = { id: decoded.userId };
         next();
     } catch (err) {

@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require('../src/config/db');
 const { body, param } = require('express-validator');
 const validateRequest = require('../src/middleware/validateRequest');
+const authMiddleware = require('../src/middleware/authMiddleware');
 
 
 router.get('/', async (req, res) => {
@@ -49,18 +50,16 @@ router.get(
 
 router.post(
     '/:id/join',
+    authMiddleware,
     [
         param('id')
             .isInt({ min: 1 })
-            .withMessage('id debe ser un entero positivo'),
-        body('user_id')
-            .isInt({ min: 1 })
-            .withMessage('user_id debe ser un entero positivo')
+            .withMessage('id debe ser un entero positivo')
     ],
     validateRequest,
     async (req, res) => {
         const { id } = req.params;
-        const { user_id } = req.body;
+        const user_id = req.user.id;
 
         const checkSql = 'SELECT * FROM challenges WHERE id = ? AND active = 1';
 
@@ -96,10 +95,11 @@ router.post(
 
 router.get(
     '/user/:userId',
+    authMiddleware,
     [param('userId').isInt({ min: 1 }).withMessage('userId debe ser un entero positivo')],
     validateRequest,
     async (req, res) => {
-        const { userId } = req.params;
+        const userId = req.user.id;
 
         const sql = `
     SELECT 
@@ -137,6 +137,7 @@ router.get(
 
 router.put(
     '/user/:userChallengeId/progress',
+    authMiddleware,
     [
         param('userChallengeId')
             .isInt({ min: 1 })
